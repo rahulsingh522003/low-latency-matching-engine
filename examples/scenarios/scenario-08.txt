@@ -1,0 +1,13 @@
+# Interleaved ordinary and all-or-none orders
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 20 aon
+add order limit sell 2 0 10 10 aon
+add order limit sell 3 0 10 5
+add order limit sell 4 0 10 15 aon
+add order limit buy 5 0 10 5
+add order limit buy 6 0 10 20 aon
+add order limit sell 7 0 10 15
+show book 0
+quit

@@ -1,0 +1,4 @@
+# Symbol lifecycle
+add symbol 0 EURUSD
+delete symbol 0
+quit

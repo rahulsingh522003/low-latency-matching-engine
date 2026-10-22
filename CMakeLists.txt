@@ -1,119 +1,128 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
-project(limit_order_book LANGUAGES CXX)
+project(MatchingEngine VERSION 0.1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(MATCHING_WARNINGS_AS_ERRORS "Treat project warnings as errors" ON)
+option(MATCHING_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(MATCHING_BUILD_FUZZERS "Build sanitizer-backed fuzz targets" OFF)
+option(MATCHING_BUILD_EXAMPLES "Build runnable project examples" ON)
+option(MATCHING_BUILD_BENCHMARKS "Build reproducible performance benchmarks" ON)
+set(MATCHING_ITCH_SAMPLE_FILE "" CACHE FILEPATH
+    "Optional external ITCH sample used by the replay integration test")
+
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(order_book
-    src/order_book.cpp
-)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CompilerWarnings)
+include(Sanitizers)
 
-target_include_directories(order_book
+add_library(
+    matching_engine
+    STATIC
+        source/matching/order.cpp
+        source/matching/order_book.cpp
+        source/matching/market_manager.cpp
+)
+add_library(matching::engine ALIAS matching_engine)
+target_compile_features(matching_engine PUBLIC cxx_std_20)
+target_include_directories(
+    matching_engine
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:include>"
 )
+matching_enable_warnings(matching_engine)
+matching_enable_sanitizers(matching_engine)
 
-target_compile_options(order_book
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
+add_library(
+    nasdaq_itch
+    STATIC
+        source/providers/nasdaq/itch/decoder.cpp
 )
+add_library(nasdaq::itch ALIAS nasdaq_itch)
+target_compile_features(nasdaq_itch PUBLIC cxx_std_20)
+target_include_directories(
+    nasdaq_itch
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:include>"
+)
+matching_enable_warnings(nasdaq_itch)
+matching_enable_sanitizers(nasdaq_itch)
 
-add_executable(test_order_book
-    tests/test_order_book.cpp
+add_library(
+    nasdaq_itch_market_adapter
+    STATIC
+        source/providers/nasdaq/itch/market_adapter.cpp
 )
+add_library(nasdaq::itch_market_adapter ALIAS nasdaq_itch_market_adapter)
+target_compile_features(nasdaq_itch_market_adapter PUBLIC cxx_std_20)
+target_include_directories(
+    nasdaq_itch_market_adapter
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:include>"
+)
+target_link_libraries(
+    nasdaq_itch_market_adapter
+    PUBLIC
+        matching::engine
+        nasdaq::itch
+)
+matching_enable_warnings(nasdaq_itch_market_adapter)
+matching_enable_sanitizers(nasdaq_itch_market_adapter)
 
-target_compile_options(test_order_book
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
+include(CTest)
 
-target_link_libraries(test_order_book
-    PRIVATE
-        order_book
-)
+if(MATCHING_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
-add_executable(test_order_book_verbose
-    tests/test_order_book_verbose.cpp
-)
+if(MATCHING_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
 
-target_compile_options(test_order_book_verbose
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
+if(MATCHING_BUILD_FUZZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "^(AppleClang|Clang|GNU)$")
+        message(FATAL_ERROR "MATCHING_BUILD_FUZZERS requires Clang or GCC")
+    endif()
 
-target_link_libraries(test_order_book_verbose
-    PRIVATE
-        order_book
-)
+    target_compile_options(
+        nasdaq_itch
+        PRIVATE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+            -fno-sanitize-recover=all
+    )
+    target_link_options(
+        nasdaq_itch
+        INTERFACE
+            -fsanitize=address,undefined
+    )
 
-add_executable(order_book_demo
-    examples/demo.cpp
-)
+    add_executable(
+        itch_decoder_fuzz
+        fuzz/itch_decoder_fuzz.cpp
+        fuzz/itch_decoder_fuzz_main.cpp
+    )
+    target_compile_features(itch_decoder_fuzz PRIVATE cxx_std_20)
+    target_link_libraries(itch_decoder_fuzz PRIVATE nasdaq::itch)
+    target_compile_options(
+        itch_decoder_fuzz
+        PRIVATE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+            -fno-sanitize-recover=all
+    )
+    target_link_options(
+        itch_decoder_fuzz
+        PRIVATE
+            -fsanitize=address,undefined
+    )
+    matching_enable_warnings(itch_decoder_fuzz)
+endif()
 
-target_compile_options(order_book_demo
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
-
-target_link_libraries(order_book_demo
-    PRIVATE
-        order_book
-)
-
-add_executable(order_book_interactive
-    examples/interactive_demo.cpp
-)
-
-target_compile_options(order_book_interactive
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
-
-target_link_libraries(order_book_interactive
-    PRIVATE
-        order_book
-)
-
-add_executable(order_book_benchmark
-    benchmarks/benchmark.cpp
-)
-
-target_compile_options(order_book_benchmark
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
-
-target_link_libraries(order_book_benchmark
-    PRIVATE
-        order_book
-)
-
-add_executable(random
-    examples/random.cpp
-)
-
-target_compile_options(random
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
-
-target_link_libraries(random
-    PRIVATE
-        order_book
-)
+if(BUILD_TESTING)
+    add_subdirectory(third_party/Catch2)
+    add_subdirectory(tests)
+endif()

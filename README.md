@@ -1,158 +1,187 @@
-# C++ Limit Order Book & Matching Engine
+# Low-Latency Multi-Instrument Matching Engine
 
-A single-instrument limit order book and matching engine implemented in C++.  
-Supports limit/market orders, price-time priority matching, cancellation, and depth queries.
+Author: Rahul Singh
 
----
+A C++20 matching engine with separate instrument books, price-time priority,
+intrusive data structures, reusable object pools, and a Nasdaq TotalView-ITCH
+5.0 decoding and reconstruction pipeline.
+
+The engine processes commands synchronously with a single writer. Its focus is
+matching correctness, explicit object ownership, and reproducible performance
+measurements.
 
 ## Features
 
-- Limit and market orders (buy/sell)
-- Price-time priority matching (FIFO within price level)
-- Partial fills and multi-level matching
-- Order cancellation by ID
-- Trade generation
-- Top-of-book (best bid/ask, spread)
-- Depth snapshot via `levels()` API
-- Unit tests + verbose test runner
-- Interactive CLI and demo program
-- Benchmarking (throughput measurement)
+- Market, limit, stop, stop-limit, trailing-stop, and trailing-stop-limit orders.
+- GTC, IOC, FOK, and AON instructions, partial fills, quantity reductions,
+  modification, replacement, cancellation, and externally supplied executions.
+- Hidden and display-capped liquidity. Displayed quantity is
+  `min(remaining quantity, display cap)`; the model preserves FIFO rather than
+  implementing an exchange-specific iceberg refresh policy.
+- Separate bid, ask, buy-stop, sell-stop, trailing-buy-stop, and
+  trailing-sell-stop indexes for each instrument.
+- Intrusive FIFO order queues, AVL price indexes, cached best-price pointers,
+  and an active-order hash table using linear probing and backward-shift deletion.
+- Typed block pools for symbols, books, levels, and orders, with stable object
+  addresses and reusable free slots.
+- Synchronous callbacks for successful order, execution, level, and book changes.
+- Streaming ITCH framing and field decoding, including fragmented input.
 
----
+## Architecture
 
-## Order Types
+`MarketManager` owns the instrument registry, active-order index, and four
+typed pools. It validates commands, routes them by symbol, and coordinates
+matching and order lifecycles.
 
-### Limit Order
-- Executes at specified price or better
-- May rest in the book if not fully matched
+Each `OrderBook` maintains one instrument's price levels, FIFO queues,
+aggregates, and best-price pointers. `OrderNode` objects link into their
+containing `LevelNode`; levels link into their respective AVL trees.
 
-### Market Order
-- Executes immediately against best available prices
-- Never rests in the book
+`MarketHandler` provides the application's event interface. Callbacks run on
+the calling thread, must not re-enter mutating manager operations, and must
+not retain the supplied object references after the callback returns.
 
----
+The ITCH decoder and `MarketAdapter` are separate from the matching library.
+Historical reconstruction applies executions recorded in the feed, with
+automatic matching disabled.
 
-## Example
+```text
+include/matching/          Engine API, containers, and memory pools
+source/matching/           Matching and order-book implementation
+include/providers/        ITCH messages, decoder, and adapter API
+source/providers/         ITCH decoding and adapter implementation
+examples/                 Interactive CLI, scenarios, and feed replay
+tests/                    Catch2 tests and integration checks
+benchmarks/               Matching, container, layout, and ITCH benchmarks
+fuzz/                     Malformed-input decoder harness
+third_party/Catch2/       Vendored test framework and its license
+```
 
-Add Sell: 101 x 40  
-Add Buy:  103 x 40  
+## Build and test
 
-→ Trade: 101 x 40
+Requirements: CMake 3.20 or newer and a C++20 compiler. Catch2 is vendored, so
+building the test suite does not require downloading dependencies. Python 3
+is only needed for the benchmark runner.
 
----
+```sh
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_TESTING=ON \
+  -DMATCHING_BUILD_BENCHMARKS=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
 
-## Project Structure
+The suite covers FIFO priority, matching and advanced-order rules,
+multi-instrument isolation, container invariants, pool reuse and alignment,
+randomized container comparisons, parser fragmentation, and CLI scenarios.
 
-include/        # Header files  
-src/            # Core matching engine  
-tests/          # Unit tests (compact + verbose)  
-examples/       # Demo and interactive CLI  
-benchmarks/     # Performance benchmarking  
-CMakeLists.txt  
+For an AddressSanitizer/UndefinedBehaviorSanitizer build with a supported
+Clang or GCC toolchain:
 
----
+```sh
+cmake -S . -B build-sanitize \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTING=ON \
+  -DMATCHING_ENABLE_SANITIZERS=ON \
+  -DMATCHING_BUILD_BENCHMARKS=OFF
+cmake --build build-sanitize --parallel
+ctest --test-dir build-sanitize --output-on-failure
+```
 
-## Build
+## Run an example
 
-cmake -S . -B build  
-cmake --build build  
+```sh
+./build/examples/matching_cli < tests/data/cli_smoke.txt
+./build/examples/matching_cli < examples/scenarios/scenario-06.txt
+```
 
----
+The CLI also accepts interactive commands. This example registers an
+instrument, rests a sell order, then partially executes it with a buy:
 
-## Run
+```text
+enable matching
+add symbol 7 TEST
+add book 7
+add order limit sell 1 7 18530 10
+add order limit buy 2 7 18535 6
+show book 7
+show order 1
+quit
+```
 
-### Run tests (compact)
-./build/test_order_book
+Prices are integer cents: `18530` represents `185.30`. Quantities represent
+current open quantity. Active order IDs are unique across a manager, and zero
+is reserved as an invalid order ID. Automatic matching starts disabled;
+enable it explicitly for matching incoming orders.
 
-### Verbose tests (detailed output)
-./build/test_order_book_verbose
+## Replay Nasdaq ITCH
 
-### Demo (scripted scenario)
-./build/order_book_demo
+Supply an uncompressed TotalView-ITCH 5.0 file locally; market datasets are not
+included in the repository.
 
-### Interactive CLI
-./build/order_book_interactive
+```sh
+./build/examples/itch_replay /path/to/feed.itch --round-cent --chunk-size 65536
+```
 
-### Benchmark
-./build/order_book_benchmark
+ITCH prices have four implied decimal places; the engine uses two. Choose
+`--exact-cent` to reject prices that cannot be represented exactly, or
+`--round-cent` for half-up rounding. Positive prices below half a cent map to
+the minimum valid one-cent level. Rounded reconstruction can merge distinct
+sub-cent levels and is not an exchange-exact sub-cent book.
 
----
+## Benchmarks
 
-## Design
+The recorded portable Release baseline was measured on an Apple M4 Pro with
+24 GiB RAM, macOS 26.6.2, and Apple Clang 21 using `-O3 -DNDEBUG` on
+September 12, 2026. The engine was single-threaded and was not core-pinned.
 
-### Data Structures
+| Workload | Recorded median throughput |
+| --- | ---: |
+| Mixed manager commands with counting callbacks | 46.048 million commands/s |
+| Full-day streaming ITCH parsing | 76.493 million messages/s |
+| Full-day ITCH reconstruction with counting callbacks | 5.781 million messages/s |
 
-- std::map  
-  Maintains sorted price levels  
-  Bids → descending  
-  Asks → ascending  
+The reconstruction processed 368,366,634 messages from the January 30, 2019
+feed. It includes framing, decoding, cent conversion, routing, book updates,
+and counting callbacks. It applies recorded feed events and is a different
+workload from automatic matching of submitted orders.
 
-- std::list  
-  FIFO queue for orders at each price level  
-  Ensures time priority  
+The mixed workload includes adds, cancellations, quantity and price changes,
+and one-to-one matches. Matching latency samples average 64 commands per batch;
+they are not individually timed order-latency percentiles. Measurements exclude
+network gateways and client round trips. Results describe the recorded machine
+and workload rather than a hardware-independent latency guarantee.
 
-- std::unordered_map  
-  O(1) average lookup for order ID  
-  Enables fast cancellation  
+Run the synthetic benchmarks and object-layout report:
 
----
+```sh
+./build/benchmarks/layout_report
+./build/benchmarks/matching_latency_benchmark --output benchmark-results/matching
+./build/benchmarks/structure_benchmark --output benchmark-results/structures
+```
 
-### Matching Logic
+To reproduce the combined measurement protocol with local datasets:
 
-- Price priority:
-  Buy → lowest ask  
-  Sell → highest bid  
+```sh
+python3 benchmarks/run_phase19.py \
+  --build-dir build \
+  --sample /path/to/sample.itch \
+  --full-day /path/to/01302019.NASDAQ_ITCH50 \
+  --output benchmark-results/baseline
+```
 
-- Time priority:
-  FIFO within each price level  
+The runner retains raw samples, summaries, source and binary hashes, dataset
+hashes, and machine metadata. Generated results and profiling files remain
+local and are ignored by Git.
 
-- Execution price:
-  Trade occurs at resting order price  
+## Scope
 
-- Market orders:
-  Sweep across multiple price levels  
-  Do not rest in the book  
+This is an in-process matching library and replay tool. Networking, persistent
+recovery, risk checks, trading sessions, and concurrent instrument sharding
+are outside the current implementation. Callers must serialize mutations.
+Hash lookup is average O(1), while price-level operations use balanced-tree
+traversal; cancelling the last order at a level also removes that tree node.
 
----
-
-## Performance
-
-Benchmark performed using 1,000,000 synthetic orders (mixed workload).
-
-Results (multiple runs):
-
-- Time taken: ~0.60–0.62 seconds  
-- Throughput: ~1.6M–1.67M orders/sec (single-threaded)
-
-Example run:
-- Time taken: 0.598 seconds  
-- Throughput: 1,671,018 orders/sec  
-
----
-
-## Complexity (High-Level)
-
-Add order       → O(log P)  
-Cancel order    → O(log P)  
-Match execution → O(K)  
-
-P = number of price levels  
-K = number of matched orders  
-
----
-
-## Depth Snapshot Example
-
-Bids:
-  100 -> 100
-   99 -> 25
-
-Asks:
-  101 -> 50
-  102 -> 15
-
----
-
-## Author
-
-Rahul Singh
+The vendored Catch2 dependency retains its
+[Boost Software License](third_party/Catch2/LICENSE.txt).

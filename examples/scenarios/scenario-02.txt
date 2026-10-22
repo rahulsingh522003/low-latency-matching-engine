@@ -1,0 +1,5 @@
+# Order-book lifecycle
+add symbol 0 EURUSD
+add book 0
+delete book 0
+quit

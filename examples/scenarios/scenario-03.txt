@@ -1,0 +1,10 @@
+# Order lifecycle; symbol ID is explicit on every mutation.
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 10
+reduce order 0 1 5
+modify order 0 1 20 20
+replace order 0 1 2 30 30
+delete order 0 2
+quit

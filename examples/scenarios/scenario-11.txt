@@ -1,0 +1,11 @@
+# Dormant sell stop activates after the market moves down.
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 10
+add order limit buy 2 0 20 20
+add order limit buy 3 0 30 30
+add order stop sell 4 0 20 20
+add order market sell 5 0 40
+show book 0
+quit

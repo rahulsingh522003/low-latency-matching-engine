@@ -1,0 +1,25 @@
+# Price-time-priority sweep across ask levels
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 10
+add order limit buy 2 0 10 20
+add order limit buy 3 0 10 30
+add order limit buy 4 0 20 10
+add order limit buy 5 0 20 20
+add order limit buy 6 0 20 30
+add order limit buy 7 0 30 10
+add order limit buy 8 0 30 20
+add order limit buy 9 0 30 30
+add order limit sell 10 0 60 30
+add order limit sell 11 0 60 20
+add order limit sell 12 0 60 10
+add order limit sell 13 0 50 30
+add order limit sell 14 0 50 20
+add order limit sell 15 0 50 10
+add order limit sell 16 0 40 30
+add order limit sell 17 0 40 20
+add order limit sell 18 0 40 10
+add order limit buy 19 0 50 100
+show book 0
+quit

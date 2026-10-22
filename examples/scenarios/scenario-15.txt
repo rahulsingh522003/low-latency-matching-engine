@@ -1,0 +1,10 @@
+# Executing a non-best ask must leave the best ask unchanged.
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit sell 1 0 23000 15
+add order limit sell 2 0 25000 25
+execute order 0 2 25
+show book 0
+show order 1
+quit

@@ -1,0 +1,11 @@
+# First FOK is killed; second FOK fills completely.
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 10
+add order limit buy 2 0 20 20
+add order limit buy 3 0 30 30
+add order limit sell 4 0 10 100 fok
+add order limit sell 5 0 10 40 fok
+show book 0
+quit

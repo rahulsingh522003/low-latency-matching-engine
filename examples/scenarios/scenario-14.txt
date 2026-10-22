@@ -1,0 +1,12 @@
+# A gateway knows cumulative fills. It translates revised total quantities into
+# leaves before calling this engine: 150-20=130, 50-20=30, and 10-20<=0.
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 100
+add order market sell 2 0 20
+modify order 0 1 10 130
+modify order 0 1 10 30
+delete order 0 1
+show book 0
+quit

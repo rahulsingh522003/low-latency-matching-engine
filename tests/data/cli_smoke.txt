@@ -1,0 +1,8 @@
+enable matching
+add symbol 7 TEST
+add book 7
+add order limit sell 1 7 18530 10
+add order limit buy 2 7 18535 6
+show book 7
+show order 1
+quit

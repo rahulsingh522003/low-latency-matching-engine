@@ -1,0 +1,8 @@
+# Market order consumes a resting limit
+enable matching
+add symbol 0 EURUSD
+add book 0
+add order limit buy 1 0 10 10
+add order market sell 2 0 10
+show book 0
+quit
