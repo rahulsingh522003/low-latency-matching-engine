@@ -20,8 +20,8 @@ add_library(
     matching_engine
     STATIC
         source/matching/order.cpp
-        source/matching/order_book.cpp
-        source/matching/market_manager.cpp
+        source/matching/book/order_book.cpp
+        source/matching/manager/market_manager.cpp
 )
 add_library(matching::engine ALIAS matching_engine)
 target_compile_features(matching_engine PUBLIC cxx_std_20)

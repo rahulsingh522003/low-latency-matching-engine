@@ -4,7 +4,7 @@
 #include "message_handler.h"
 
 #include "matching/errors.h"
-#include "matching/market_manager.h"
+#include "matching/manager/market_manager.h"
 #include "matching/types.h"
 
 #include <array>

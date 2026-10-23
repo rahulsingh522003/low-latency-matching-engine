@@ -1,10 +1,10 @@
 #include "benchmark_support.h"
 
 #include "matching/level.h"
-#include "matching/market_handler.h"
-#include "matching/market_manager.h"
+#include "matching/events/market_handler.h"
+#include "matching/manager/market_manager.h"
 #include "matching/order.h"
-#include "matching/order_book.h"
+#include "matching/book/order_book.h"
 #include "matching/symbol.h"
 #include "providers/nasdaq/itch/decoder.h"
 #include "providers/nasdaq/itch/market_adapter.h"

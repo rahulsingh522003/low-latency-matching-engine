@@ -29,33 +29,52 @@ measurements.
 
 ## Architecture
 
-`MarketManager` owns the instrument registry, active-order index, and four
-typed pools. It validates commands, routes them by symbol, and coordinates
-matching and order lifecycles.
+[MarketManager](include/matching/manager/market_manager.h) owns the instrument
+registry, active-order index, and four typed pools. It validates commands,
+routes them by symbol, and coordinates matching and order lifecycles.
 
-Each `OrderBook` maintains one instrument's price levels, FIFO queues,
-aggregates, and best-price pointers. `OrderNode` objects link into their
-containing `LevelNode`; levels link into their respective AVL trees.
+Each [OrderBook](include/matching/book/order_book.h) maintains one instrument's
+price levels, FIFO queues, aggregates, and best-price pointers. `OrderNode`
+objects link into their containing `LevelNode`; levels link into their
+respective AVL trees.
 
-`MarketHandler` provides the application's event interface. Callbacks run on
-the calling thread, must not re-enter mutating manager operations, and must
-not retain the supplied object references after the callback returns.
+[MarketHandler](include/matching/events/market_handler.h) provides the
+application's event interface. Callbacks run on the calling thread, must not
+re-enter mutating manager operations, and must not retain the supplied object
+references after the callback returns.
+
+These are source-level components within one matching library, not separate
+runtime layers. Shared order, level, symbol, and update types remain directly
+under `include/matching/`; containers and memory pools remain reusable support
+code. The original top-level component headers forward to the new locations,
+so existing public includes continue to work.
 
 The ITCH decoder and `MarketAdapter` are separate from the matching library.
 Historical reconstruction applies executions recorded in the feed, with
 automatic matching disabled.
 
 ```text
-include/matching/          Engine API, containers, and memory pools
-source/matching/           Matching and order-book implementation
-include/providers/        ITCH messages, decoder, and adapter API
-source/providers/         ITCH decoding and adapter implementation
-examples/                 Interactive CLI, scenarios, and feed replay
-tests/                    Catch2 tests and integration checks
-benchmarks/               Matching, container, layout, and ITCH benchmarks
-fuzz/                     Malformed-input decoder harness
-third_party/Catch2/       Vendored test framework and its license
+include/matching/manager/   MarketManager API and inline helpers
+source/matching/manager/    Command processing, matching, and lifecycle operations
+include/matching/book/      OrderBook API and inline helpers
+source/matching/book/       Per-instrument book-state implementation
+include/matching/events/    MarketHandler callback interface (header-only)
+include/matching/           Shared domain types and compatibility headers
+source/matching/order.cpp   Shared order validation
+include/matching/containers/ Intrusive lists, AVL trees, and hash table
+include/matching/memory/    Reusable object pools
+include/providers/         ITCH messages, decoder, and adapter API
+source/providers/          ITCH decoding and adapter implementation
+examples/                  Interactive CLI, scenarios, and feed replay
+tests/                     Catch2 tests and integration checks
+benchmarks/                Matching, container, layout, and ITCH benchmarks
+fuzz/                      Malformed-input decoder harness
+third_party/Catch2/        Vendored test framework and its license
 ```
+
+To read the engine, start with the manager's public interface, inspect the
+book's stored state, and then review the event callbacks. Follow
+`MarketManager::add_order()` to see the three components interact.
 
 ## Build and test
 
