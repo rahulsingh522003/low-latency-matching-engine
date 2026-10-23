@@ -2,7 +2,7 @@
 
 #include "matching/errors.h"
 #include "matching/level.h"
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
 #include "matching/manager/market_manager.h"
 #include "matching/order.h"
 #include "matching/book/order_book.h"
@@ -40,7 +40,7 @@ struct Options
     std::filesystem::path output_directory;
 };
 
-class CountingHandler final : public matching::MarketHandler
+class CountingHandler final : public matching::EventHandler
 {
 public:
     void reset() noexcept
@@ -105,7 +105,7 @@ private:
     void observe() noexcept { ++callbacks_; }
 };
 
-class NoOpHandler final : public matching::MarketHandler
+class NoOpHandler final : public matching::EventHandler
 {
 };
 

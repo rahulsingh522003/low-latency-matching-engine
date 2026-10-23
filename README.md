@@ -38,7 +38,7 @@ price levels, FIFO queues, aggregates, and best-price pointers. `OrderNode`
 objects link into their containing `LevelNode`; levels link into their
 respective AVL trees.
 
-[MarketHandler](include/matching/events/market_handler.h) provides the
+[EventHandler](include/matching/events/event_handler.h) provides the
 application's event interface. Callbacks run on the calling thread, must not
 re-enter mutating manager operations, and must not retain the supplied object
 references after the callback returns.
@@ -49,6 +49,10 @@ under `include/matching/`; containers and memory pools remain reusable support
 code. The original top-level component headers forward to the new locations,
 so existing public includes continue to work.
 
+New integrations use `EventHandler`. The original `MarketHandler` name remains
+a compatibility alias for existing applications; both names refer to the same
+callback interface.
+
 The ITCH decoder and `MarketAdapter` are separate from the matching library.
 Historical reconstruction applies executions recorded in the feed, with
 automatic matching disabled.
@@ -58,7 +62,7 @@ include/matching/manager/   MarketManager API and inline helpers
 source/matching/manager/    Command processing, matching, and lifecycle operations
 include/matching/book/      OrderBook API and inline helpers
 source/matching/book/       Per-instrument book-state implementation
-include/matching/events/    MarketHandler callback interface (header-only)
+include/matching/events/    EventHandler callback interface (header-only)
 include/matching/           Shared domain types and compatibility headers
 source/matching/order.cpp   Shared order validation
 include/matching/containers/ Intrusive lists, AVL trees, and hash table

@@ -76,7 +76,7 @@ struct Event
     friend bool operator==(const Event&, const Event&) noexcept = default;
 };
 
-class RecordingHandler final : public matching::MarketHandler
+class RecordingHandler final : public matching::EventHandler
 {
 public:
     matching::MarketManager* manager{nullptr};
@@ -501,7 +501,7 @@ TEST_CASE("Active order identifiers are unique across all instruments",
 }
 
 TEST_CASE("Passive addition callbacks expose completed state in a fixed order",
-          "[market_manager][orders][market_handler]")
+          "[market_manager][orders][event_handler]")
 {
     RecordingHandler handler;
     matching::MarketManager manager(handler);

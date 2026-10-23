@@ -9,7 +9,7 @@
 
 namespace matching {
 
-MarketHandler MarketManager::default_handler_;
+EventHandler MarketManager::default_handler_;
 
 MarketManager::~MarketManager() noexcept
 {
@@ -93,7 +93,7 @@ ErrorCode MarketManager::add_symbol(const Symbol& symbol)
 
     symbols_[index] = stored_symbol;
     ++symbol_count_;
-    market_handler_.on_add_symbol(*stored_symbol);
+    event_handler_.on_add_symbol(*stored_symbol);
     return ErrorCode::OK;
 }
 
@@ -110,7 +110,7 @@ ErrorCode MarketManager::delete_symbol(SymbolId symbol_id) noexcept
     symbols_[index] = nullptr;
     --symbol_count_;
 
-    market_handler_.on_delete_symbol(*symbol);
+    event_handler_.on_delete_symbol(*symbol);
     symbol_pool_.release(*symbol);
     return ErrorCode::OK;
 }
@@ -143,7 +143,7 @@ ErrorCode MarketManager::add_order_book(SymbolId symbol_id)
 
     order_books_[index] = order_book;
     ++order_book_count_;
-    market_handler_.on_add_order_book(*order_book);
+    event_handler_.on_add_order_book(*order_book);
     return ErrorCode::OK;
 }
 
@@ -160,7 +160,7 @@ ErrorCode MarketManager::delete_order_book(SymbolId symbol_id) noexcept
     order_books_[index] = nullptr;
     --order_book_count_;
 
-    market_handler_.on_delete_order_book(*order_book);
+    event_handler_.on_delete_order_book(*order_book);
     order_book_pool_.release(*order_book);
     return ErrorCode::OK;
 }
@@ -481,7 +481,7 @@ ErrorCode MarketManager::add_triggered_order(OrderBook& order_book,
     Order incoming(order);
     if (incoming.is_stop() || incoming.is_trailing_stop())
     {
-        market_handler_.on_add_order(incoming);
+        event_handler_.on_add_order(incoming);
 
         const bool preserve_fok = incoming.is_fok();
         incoming.type = OrderType::MARKET;
@@ -492,7 +492,7 @@ ErrorCode MarketManager::add_triggered_order(OrderBook& order_book,
         incoming.max_display_quantity = Order::FULLY_DISPLAYED;
         incoming.trailing_distance = 0;
         incoming.trailing_step = 0;
-        market_handler_.on_update_order(incoming);
+        event_handler_.on_update_order(incoming);
 
         Price execution_bound = 0;
         const bool has_opposite_liquidity =
@@ -508,7 +508,7 @@ ErrorCode MarketManager::add_triggered_order(OrderBook& order_book,
                 match_incoming(order_book, incoming, execution_bound));
         }
 
-        market_handler_.on_delete_order(incoming);
+        event_handler_.on_delete_order(incoming);
         match_order_book(order_book);
         return ErrorCode::OK;
     }
@@ -549,8 +549,8 @@ ErrorCode MarketManager::add_triggered_order(OrderBook& order_book,
             throw std::bad_alloc();
     }
 
-    market_handler_.on_add_order(order);
-    market_handler_.on_update_order(incoming);
+    event_handler_.on_add_order(order);
+    event_handler_.on_update_order(incoming);
 
     if (has_opposite_liquidity && can_fill)
     {
@@ -583,7 +583,7 @@ ErrorCode MarketManager::add_triggered_order(OrderBook& order_book,
         publish_level_update(order_book, *level_update);
     }
     else
-        market_handler_.on_delete_order(incoming);
+        event_handler_.on_delete_order(incoming);
 
     match_order_book(order_book);
     return ErrorCode::OK;
@@ -653,7 +653,7 @@ ErrorCode MarketManager::add_order(const Order& order)
                 throw std::bad_alloc();
         }
 
-        market_handler_.on_add_order(incoming);
+        event_handler_.on_add_order(incoming);
 
         if (has_opposite_liquidity && can_fill)
             static_cast<void>(match_incoming(*order_book, incoming, execution_bound));
@@ -685,7 +685,7 @@ ErrorCode MarketManager::add_order(const Order& order)
 
         }
         else
-            market_handler_.on_delete_order(incoming);
+            event_handler_.on_delete_order(incoming);
 
         match_order_book(*order_book);
         return ErrorCode::OK;
@@ -696,8 +696,8 @@ ErrorCode MarketManager::add_order(const Order& order)
         if (active_orders_.contains(prepared_order.id))
             return ErrorCode::ORDER_DUPLICATE;
 
-        market_handler_.on_add_order(prepared_order);
-        market_handler_.on_delete_order(prepared_order);
+        event_handler_.on_add_order(prepared_order);
+        event_handler_.on_delete_order(prepared_order);
         return ErrorCode::OK;
     }
 
@@ -738,7 +738,7 @@ ErrorCode MarketManager::add_order(const Order& order)
         throw std::bad_alloc();
     }
 
-    market_handler_.on_add_order(*stored_order);
+    event_handler_.on_add_order(*stored_order);
     if (level_update.has_value())
         publish_level_update(*order_book, *level_update);
     process_if_enabled(*order_book);
@@ -772,10 +772,10 @@ ErrorCode MarketManager::reduce_order(SymbolId symbol_id,
         const bool erased = active_orders_.erase(order_id);
         assert(erased && "Completed reduction must erase its registry entry");
         static_cast<void>(erased);
-        market_handler_.on_delete_order(*order);
+        event_handler_.on_delete_order(*order);
     }
     else
-        market_handler_.on_update_order(*order);
+        event_handler_.on_update_order(*order);
 
     if (level_update.has_value())
         publish_level_update(*order_book, *level_update);
@@ -824,7 +824,7 @@ ErrorCode MarketManager::modify_order(SymbolId symbol_id,
         std::optional<LevelUpdate> level_update;
         reduce_in_order_book(
             *order_book, *order, order->quantity - new_quantity, level_update);
-        market_handler_.on_update_order(*order);
+        event_handler_.on_update_order(*order);
         if (level_update.has_value())
             publish_level_update(*order_book, *level_update);
         process_if_enabled(*order_book);
@@ -854,7 +854,7 @@ ErrorCode MarketManager::modify_order(SymbolId symbol_id,
         std::terminate();
     }
 
-    market_handler_.on_update_order(*order);
+    event_handler_.on_update_order(*order);
     if (old_level_update.has_value())
         publish_level_update(*order_book, *old_level_update);
     if (new_level_update.has_value())
@@ -975,8 +975,8 @@ ErrorCode MarketManager::replace_resolved_order(OrderBook& order_book,
     assert(old_id_erased && "Successful replacement must erase the original ID");
     static_cast<void>(old_id_erased);
 
-    market_handler_.on_delete_order(original);
-    market_handler_.on_add_order(order);
+    event_handler_.on_delete_order(original);
+    event_handler_.on_add_order(order);
     if (old_level_update.has_value())
         publish_level_update(order_book, *old_level_update);
     if (new_level_update.has_value())
@@ -1004,7 +1004,7 @@ ErrorCode MarketManager::delete_order(SymbolId symbol_id, OrderId order_id) noex
     assert(erased && "Deleted order must be erased from the registry");
     static_cast<void>(erased);
 
-    market_handler_.on_delete_order(*order);
+    event_handler_.on_delete_order(*order);
     if (level_update.has_value())
         publish_level_update(*order_book, *level_update);
     order_pool_.release(*order);
@@ -1082,11 +1082,11 @@ ErrorCode MarketManager::execute_resolved_order(OrderBook& order_book,
         static_cast<void>(erased);
     }
 
-    market_handler_.on_execute_order(order, execution_price, execution_quantity);
+    event_handler_.on_execute_order(order, execution_price, execution_quantity);
     if (complete)
-        market_handler_.on_delete_order(order);
+        event_handler_.on_delete_order(order);
     else
-        market_handler_.on_update_order(order);
+        event_handler_.on_update_order(order);
 
     if (level_update.has_value())
         publish_level_update(order_book, *level_update);
@@ -1463,7 +1463,7 @@ bool MarketManager::activate_market_stop(OrderBook& order_book,
     order.trailing_distance = 0;
     order.trailing_step = 0;
 
-    market_handler_.on_update_order(order);
+    event_handler_.on_update_order(order);
 
     Price execution_bound = 0;
     const bool has_opposite_liquidity =
@@ -1492,7 +1492,7 @@ bool MarketManager::activate_market_stop(OrderBook& order_book,
                "Filled activated stop must already have left the registry");
     }
 
-    market_handler_.on_delete_order(order);
+    event_handler_.on_delete_order(order);
     order_pool_.release(order);
     return true;
 }
@@ -1542,7 +1542,7 @@ bool MarketManager::activate_limit_stop(OrderBook& order_book,
         order_book.delete_stop_order(order);
 
     static_cast<Order&>(order) = activated;
-    market_handler_.on_update_order(order);
+    event_handler_.on_update_order(order);
 
     if (has_opposite_liquidity && can_fill)
     {
@@ -1578,7 +1578,7 @@ bool MarketManager::activate_limit_stop(OrderBook& order_book,
                "Filled activated stop-limit must already have left the registry");
     }
 
-    market_handler_.on_delete_order(order);
+    event_handler_.on_delete_order(order);
     order_pool_.release(order);
     return true;
 }
@@ -1645,7 +1645,7 @@ bool MarketManager::reprice_trailing_orders(OrderBook& order_book,
                     std::terminate();
                 }
 
-                market_handler_.on_update_order(*order);
+                event_handler_.on_update_order(*order);
                 any_repriced = true;
                 level_changed = true;
             }
@@ -1732,7 +1732,7 @@ void MarketManager::execute_incoming_trade(OrderBook& order_book,
                              execution_price,
                              execution_quantity,
                              passive_level_update);
-    market_handler_.on_execute_order(
+    event_handler_.on_execute_order(
         incoming, execution_price, execution_quantity);
 
     if (passive_complete)
@@ -1799,11 +1799,11 @@ void MarketManager::publish_execution_result(
     Quantity execution_quantity,
     const std::optional<LevelUpdate>& level_update) noexcept
 {
-    market_handler_.on_execute_order(order, execution_price, execution_quantity);
+    event_handler_.on_execute_order(order, execution_price, execution_quantity);
     if (order.quantity == 0)
-        market_handler_.on_delete_order(order);
+        event_handler_.on_delete_order(order);
     else
-        market_handler_.on_update_order(order);
+        event_handler_.on_update_order(order);
 
     if (level_update.has_value())
         publish_level_update(order_book, *level_update);
@@ -1859,17 +1859,17 @@ void MarketManager::publish_level_update(const OrderBook& order_book,
     switch (update.type)
     {
         case UpdateType::ADD:
-            market_handler_.on_add_level(order_book, update.level, update.top);
+            event_handler_.on_add_level(order_book, update.level, update.top);
             break;
         case UpdateType::UPDATE:
-            market_handler_.on_update_level(order_book, update.level, update.top);
+            event_handler_.on_update_level(order_book, update.level, update.top);
             break;
         case UpdateType::DELETE:
-            market_handler_.on_delete_level(order_book, update.level, update.top);
+            event_handler_.on_delete_level(order_book, update.level, update.top);
             break;
     }
 
-    market_handler_.on_update_order_book(order_book, update.top);
+    event_handler_.on_update_order_book(order_book, update.top);
 }
 
 } // namespace matching

@@ -8,7 +8,7 @@ add_executable(
     itch_market_adapter_test.cpp
     intrusive_avl_tree_test.cpp
     level_test.cpp
-    market_handler_test.cpp
+    event_handler_test.cpp
     market_manager_test.cpp
     matching_engine_test.cpp
     object_pool_test.cpp
@@ -36,7 +36,7 @@ add_test(NAME matching.object_pool COMMAND matching_tests "[object_pool]")
 add_test(NAME matching.order COMMAND matching_tests "[order]")
 add_test(NAME matching.intrusive_avl_tree COMMAND matching_tests "[avl]")
 add_test(NAME matching.level COMMAND matching_tests "[level]")
-add_test(NAME matching.market_handler COMMAND matching_tests "[market_handler]")
+add_test(NAME matching.event_handler COMMAND matching_tests "[event_handler]")
 add_test(NAME matching.market_manager COMMAND matching_tests "[market_manager]")
 add_test(NAME matching.engine COMMAND matching_tests "[matching]")
 add_test(NAME matching.order_book COMMAND matching_tests "[order_book]")

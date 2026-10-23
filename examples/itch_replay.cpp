@@ -2,7 +2,7 @@
 #include "providers/nasdaq/itch/market_adapter.h"
 
 #include "matching/level.h"
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
 #include "matching/manager/market_manager.h"
 #include "matching/order.h"
 #include "matching/book/order_book.h"
@@ -83,7 +83,7 @@ void mix_order(std::uint64_t& hash, const matching::Order& order) noexcept
     mix_integer(hash, order.trailing_step);
 }
 
-class ReplayMarketHandler final : public matching::MarketHandler
+class ReplayEventHandler final : public matching::EventHandler
 {
 public:
     [[nodiscard]] std::uint64_t callbacks() const noexcept { return callbacks_; }
@@ -416,8 +416,8 @@ int main(int argc, char** argv)
         return 2;
     }
 
-    ReplayMarketHandler market_handler;
-    matching::MarketManager market(market_handler);
+    ReplayEventHandler event_handler;
+    matching::MarketManager market(event_handler);
     itch::MarketAdapter adapter(market, options.price_policy);
     itch::Decoder decoder(adapter);
 
@@ -478,27 +478,27 @@ int main(int argc, char** argv)
               << "Exact-cent prices: " << feed.exact_cent_prices << '\n'
               << "Rounded prices: " << feed.rounded_prices << '\n'
               << "Minimum-cent prices: " << feed.minimum_cent_prices << '\n'
-              << "Market callbacks: " << market_handler.callbacks() << '\n'
+              << "Market callbacks: " << event_handler.callbacks() << '\n'
               << "State-change callbacks: "
-              << (market_handler.callbacks() -
-                  market_handler.book_summary_callbacks())
+              << (event_handler.callbacks() -
+                  event_handler.book_summary_callbacks())
               << '\n'
-              << "Maximum symbols: " << market_handler.maximum_symbols() << '\n'
-              << "Maximum books: " << market_handler.maximum_books() << '\n'
-              << "Maximum active orders: " << market_handler.maximum_orders() << '\n'
+              << "Maximum symbols: " << event_handler.maximum_symbols() << '\n'
+              << "Maximum books: " << event_handler.maximum_books() << '\n'
+              << "Maximum active orders: " << event_handler.maximum_orders() << '\n'
               << "Maximum displayed levels/side: "
-              << market_handler.maximum_displayed_levels() << '\n'
+              << event_handler.maximum_displayed_levels() << '\n'
               << "Maximum orders/level: "
-              << market_handler.maximum_orders_at_level() << '\n'
+              << event_handler.maximum_orders_at_level() << '\n'
               << "Order callbacks (add/update/delete/execute): "
-              << market_handler.added_orders() << '/'
-              << market_handler.updated_orders() << '/'
-              << market_handler.deleted_orders() << '/'
-              << market_handler.executed_orders() << '\n'
+              << event_handler.added_orders() << '/'
+              << event_handler.updated_orders() << '/'
+              << event_handler.deleted_orders() << '/'
+              << event_handler.executed_orders() << '\n'
               << "Final symbols/books/levels/orders: " << state.symbols << '/'
               << state.books << '/' << state.levels << '/' << state.orders << '\n'
               << "Final resting quantity: " << state.quantity << '\n';
-    print_hex("Event hash: ", market_handler.event_hash());
+    print_hex("Event hash: ", event_handler.event_hash());
     print_hex("State hash: ", state.hash);
 
     if ((state.symbols != market.symbol_count()) ||

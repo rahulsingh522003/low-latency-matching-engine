@@ -4,7 +4,7 @@
 #include "matching/book/order_book.h"
 #include "matching/containers/hash_map.h"
 #include "matching/errors.h"
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
 #include "matching/fast_hash.h"
 #include "matching/memory/object_pool.h"
 #include "matching/types.h"
@@ -29,7 +29,7 @@ public:
     static constexpr std::size_t INITIAL_ORDER_BUCKET_COUNT = 16U * 1024U;
 
     MarketManager();
-    explicit MarketManager(MarketHandler& market_handler);
+    explicit MarketManager(EventHandler& event_handler);
     MarketManager(const MarketManager&) = delete;
     MarketManager(MarketManager&&) = delete;
     ~MarketManager() noexcept;
@@ -103,9 +103,9 @@ private:
         ALLOCATION_FAILURE
     };
 
-    static MarketHandler default_handler_;
+    static EventHandler default_handler_;
 
-    MarketHandler& market_handler_;
+    EventHandler& event_handler_;
 
     memory::ObjectPool<LevelNode> level_pool_;
     memory::ObjectPool<Symbol> symbol_pool_;

@@ -1,7 +1,7 @@
 #include "providers/nasdaq/itch/decoder.h"
 #include "providers/nasdaq/itch/market_adapter.h"
 
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
 #include "matching/manager/market_manager.h"
 #include "matching/order.h"
 
@@ -171,7 +171,7 @@ void append_frame(std::vector<std::byte>& output,
     return message;
 }
 
-class RecordingMarketHandler final : public matching::MarketHandler
+class RecordingEventHandler final : public matching::EventHandler
 {
 public:
     std::size_t added_symbols{0};
@@ -227,8 +227,8 @@ protected:
 TEST_CASE("ITCH adapter reconstructs one complete historical order lifecycle",
           "[itch_adapter]")
 {
-    RecordingMarketHandler market_handler;
-    matching::MarketManager market(market_handler);
+    RecordingEventHandler event_handler;
+    matching::MarketManager market(event_handler);
     itch::MarketAdapter adapter(
         market, itch::PriceConversionPolicy::ROUND_TO_NEAREST_CENT);
     itch::Decoder decoder(adapter);
@@ -266,14 +266,14 @@ TEST_CASE("ITCH adapter reconstructs one complete historical order lifecycle",
     REQUIRE(statistics.rounded_prices == 1);
     REQUIRE(statistics.minimum_cent_prices == 0);
 
-    REQUIRE(market_handler.added_symbols == 1);
-    REQUIRE(market_handler.added_books == 1);
-    REQUIRE(market_handler.added_orders == 2);
-    REQUIRE(market_handler.updated_orders == 3);
-    REQUIRE(market_handler.deleted_orders == 2);
-    REQUIRE(market_handler.execution_prices ==
+    REQUIRE(event_handler.added_symbols == 1);
+    REQUIRE(event_handler.added_books == 1);
+    REQUIRE(event_handler.added_orders == 2);
+    REQUIRE(event_handler.updated_orders == 3);
+    REQUIRE(event_handler.deleted_orders == 2);
+    REQUIRE(event_handler.execution_prices ==
             std::vector<matching::Price>{18'525, 18'530});
-    REQUIRE(market_handler.execution_quantities ==
+    REQUIRE(event_handler.execution_quantities ==
             std::vector<matching::Quantity>{20, 30});
 }
 

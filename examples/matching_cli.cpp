@@ -1,6 +1,6 @@
 #include "matching/errors.h"
 #include "matching/level.h"
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
 #include "matching/manager/market_manager.h"
 #include "matching/order.h"
 #include "matching/book/order_book.h"
@@ -33,7 +33,7 @@ void print_order(std::string_view prefix, const matching::Order& order)
               << " trailing-step=" << order.trailing_step << '\n';
 }
 
-class PrintingHandler final : public matching::MarketHandler
+class PrintingHandler final : public matching::EventHandler
 {
 protected:
     void on_add_symbol(const matching::Symbol& symbol) noexcept override

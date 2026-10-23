@@ -5,8 +5,8 @@ inline MarketManager::MarketManager()
 {
 }
 
-inline MarketManager::MarketManager(MarketHandler& market_handler)
-    : market_handler_(market_handler),
+inline MarketManager::MarketManager(EventHandler& event_handler)
+    : event_handler_(event_handler),
       level_pool_(),
       symbol_pool_(),
       order_book_pool_(),

@@ -1,0 +1,56 @@
+#ifndef MATCHING_EVENT_HANDLER_H
+#define MATCHING_EVENT_HANDLER_H
+
+#include "matching/level.h"
+#include "matching/order.h"
+#include "matching/symbol.h"
+#include "matching/types.h"
+
+namespace matching {
+
+class MarketManager;
+class OrderBook;
+
+class EventHandler
+{
+    friend class MarketManager;
+
+public:
+    EventHandler() noexcept = default;
+    EventHandler(const EventHandler&) = delete;
+    EventHandler(EventHandler&&) = delete;
+    virtual ~EventHandler() noexcept = default;
+
+    EventHandler& operator=(const EventHandler&) = delete;
+    EventHandler& operator=(EventHandler&&) = delete;
+
+protected:
+    // Callbacks run synchronously after a successful logical change. References
+    // are valid only for the duration of the call and must not be retained.
+    // An accepted incoming order can be a transient value that is absent from
+    // the resting-order registry. A surviving GTC residual is registered before
+    // its level/book updates are published. Callbacks must not re-enter a
+    // mutating MarketManager operation.
+    virtual void on_add_symbol(const Symbol&) noexcept {}
+    virtual void on_delete_symbol(const Symbol&) noexcept {}
+
+    virtual void on_add_order_book(const OrderBook&) noexcept {}
+    virtual void on_update_order_book(const OrderBook&, bool) noexcept {}
+    virtual void on_delete_order_book(const OrderBook&) noexcept {}
+
+    // Level and book-update callbacks describe displayed bid/ask depth.
+    // Dormant stop indexes are reported through order callbacks only.
+    virtual void on_add_level(const OrderBook&, const Level&, bool) noexcept {}
+    virtual void on_update_level(const OrderBook&, const Level&, bool) noexcept {}
+    virtual void on_delete_level(const OrderBook&, const Level&, bool) noexcept {}
+
+    virtual void on_add_order(const Order&) noexcept {}
+    virtual void on_update_order(const Order&) noexcept {}
+    virtual void on_delete_order(const Order&) noexcept {}
+
+    virtual void on_execute_order(const Order&, Price, Quantity) noexcept {}
+};
+
+} // namespace matching
+
+#endif // MATCHING_EVENT_HANDLER_H

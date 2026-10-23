@@ -1,7 +1,7 @@
 #include "benchmark_support.h"
 
 #include "matching/level.h"
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
 #include "matching/manager/market_manager.h"
 #include "matching/order.h"
 #include "matching/book/order_book.h"
@@ -205,7 +205,7 @@ private:
     }
 };
 
-class CountingMarketHandler final : public matching::MarketHandler
+class CountingEventHandler final : public matching::EventHandler
 {
 public:
     [[nodiscard]] std::uint64_t callbacks() const noexcept { return callbacks_; }
@@ -256,7 +256,7 @@ private:
     void observe() noexcept { ++callbacks_; }
 };
 
-class NoOpMarketHandler final : public matching::MarketHandler
+class NoOpEventHandler final : public matching::EventHandler
 {
 public:
     [[nodiscard]] std::uint64_t callbacks() const noexcept { return 0; }
@@ -644,7 +644,7 @@ int main(int argc, char** argv)
                 memory_input,
                 output,
                 [](const Options& current, std::span<const std::byte> data) {
-                    return run_reconstruction<NoOpMarketHandler>(
+                    return run_reconstruction<NoOpEventHandler>(
                         current, data, "itch_reconstruction_noop");
                 });
         }
@@ -656,7 +656,7 @@ int main(int argc, char** argv)
                 memory_input,
                 output,
                 [](const Options& current, std::span<const std::byte> data) {
-                    return run_reconstruction<CountingMarketHandler>(
+                    return run_reconstruction<CountingEventHandler>(
                         current, data, "itch_reconstruction_counting");
                 });
         }

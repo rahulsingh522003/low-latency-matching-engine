@@ -1,4 +1,5 @@
-#include "matching/events/market_handler.h"
+#include "matching/events/event_handler.h"
+#include "matching/market_handler.h"
 
 #include <catch_amalgamated.hpp>
 
@@ -7,7 +8,7 @@
 
 namespace {
 
-class RecordingMarketHandler final : public matching::MarketHandler
+class RecordingEventHandler final : public matching::EventHandler
 {
 public:
     void record_add_symbol(const matching::Symbol& symbol) noexcept
@@ -62,16 +63,17 @@ protected:
     }
 };
 
-static_assert(std::is_default_constructible_v<matching::MarketHandler>);
-static_assert(std::has_virtual_destructor_v<matching::MarketHandler>);
-static_assert(!std::is_copy_constructible_v<matching::MarketHandler>);
-static_assert(!std::is_copy_assignable_v<matching::MarketHandler>);
-static_assert(!std::is_move_constructible_v<matching::MarketHandler>);
-static_assert(!std::is_move_assignable_v<matching::MarketHandler>);
+static_assert(std::is_same_v<matching::MarketHandler, matching::EventHandler>);
+static_assert(std::is_default_constructible_v<matching::EventHandler>);
+static_assert(std::has_virtual_destructor_v<matching::EventHandler>);
+static_assert(!std::is_copy_constructible_v<matching::EventHandler>);
+static_assert(!std::is_copy_assignable_v<matching::EventHandler>);
+static_assert(!std::is_move_constructible_v<matching::EventHandler>);
+static_assert(!std::is_move_assignable_v<matching::EventHandler>);
 
 } // namespace
 
-TEST_CASE("Market handler overrides receive public market values", "[market_handler]")
+TEST_CASE("Event handler overrides receive public market values", "[event_handler]")
 {
     constexpr matching::SymbolId SYMBOL_ID = 7;
     constexpr matching::OrderId ORDER_ID = 42;
@@ -82,7 +84,7 @@ TEST_CASE("Market handler overrides receive public market values", "[market_hand
     const matching::Symbol symbol(SYMBOL_ID, {'R', 'E', 'L', 'I', 'A', 'N', 'C', 'E'});
     matching::Order order = matching::Order::BuyLimit(
         ORDER_ID, SYMBOL_ID, ORDER_PRICE, ORIGINAL_QUANTITY);
-    RecordingMarketHandler handler;
+    RecordingEventHandler handler;
     handler.record_add_symbol(symbol);
     handler.record_add_order(order);
 

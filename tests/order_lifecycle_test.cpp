@@ -34,7 +34,7 @@ struct Event
     bool top{false};
 };
 
-class LifecycleHandler final : public matching::MarketHandler
+class LifecycleHandler final : public matching::EventHandler
 {
 public:
     matching::MarketManager* manager{nullptr};

@@ -1,7 +1,7 @@
 #ifndef MATCHING_MARKET_HANDLER_FORWARD_H
 #define MATCHING_MARKET_HANDLER_FORWARD_H
 
-// Preserve the original public include path.
+// Preserve the original public include path and type name.
 #include "events/market_handler.h"
 
 #endif // MATCHING_MARKET_HANDLER_FORWARD_H
